@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogMath — Logaritma</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050505;
+    --panel:#0a0a0e;
+    --panel-2:#0d0d13;
+    --line:rgba(255,255,255,.08);
+    --line-soft:rgba(255,255,255,.06);
+    --txt:#f2f2ee;
+    --mut:#a2a2b0;
+    --dim:#666672;
+    --vio:#7c6cff;
+    --vio-soft:rgba(124,108,255,.14);
+    --mint:#5eead4;
+    --amber:#f5c66b;
+    --green:#5eeaa0;
+    --red:#ff8f8f;
+    --ease:cubic-bezier(.32,.72,0,1);
+    --r-lg:2rem;
+    --r-md:calc(2rem - .375rem);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+    background:var(--bg);
+    color:var(--txt);
+    min-height:100dvh;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.6;
+  }
+  ::selection{background:rgba(124,108,255,.35)}
+  ::-webkit-scrollbar{width:8px}
+  ::-webkit-scrollbar-track{background:#050505}
+  ::-webkit-scrollbar-thumb{background:#26262e;border-radius:99px}
+  ::-webkit-scrollbar-thumb:hover{background:#3a3a46}
+
+  /* ---------- backdrop texture (fixed only) ---------- */
+  .orbs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+  .orbs i{position:absolute;border-radius:50%;filter:blur(10px);display:block}
+  .orbs .o1{width:640px;height:640px;left:-180px;top:-160px;background:radial-gradient(circle,rgba(124,108,255,.16) 0%,transparent 68%)}
+  .orbs .o2{width:560px;height:560px;right:-160px;top:22%;background:radial-gradient(circle,rgba(94,234,212,.09) 0%,transparent 68%)}
+  .orbs .o3{width:720px;height:720px;left:30%;bottom:-320px;background:radial-gradient(circle,rgba(124,108,255,.08) 0%,transparent 68%)}
+  .gridlines{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+    background-size:72px 72px;
+    mask-image:radial-gradient(ellipse 90% 60% at 50% 0%,black 30%,transparent 75%);
+  }
+  .grain{position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.032;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px;position:relative;z-index:1}
+
+  /* ---------- floating island nav ---------- */
+  .island{
+    position:fixed;top:22px;left:50%;transform:translateX(-50%);
+    z-index:40;width:max-content;max-width:calc(100vw - 32px);
+  }
+  .island-inner{
+    display:flex;align-items:center;gap:6px;
+    padding:8px 8px 8px 10px;border-radius:999px;
+    background:rgba(10,10,14,.72);
+    backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+    border:1px solid var(--line);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 20px 60px rgba(0,0,0,.5);
+  }
+  .brand{display:flex;align-items:center;gap:11px;cursor:pointer;padding:6px 14px 6px 6px;border-radius:999px;transition:background .5s var(--ease)}
+  .brand:hover{background:rgba(255,255,255,.05)}
+  .mark{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#1b1b24,#0c0c11);
+    border:1px solid rgba(255,255,255,.12);
+    box-shadow:inset 0 1px 1px rgba(255,255,255,.18);
+    font-family:'Space Grotesk';font-weight:700;font-size:.95rem;letter-spacing:-.02em}
+  .mark em{font-style:normal;background:linear-gradient(135deg,var(--vio),var(--mint));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .brand b{font-family:'Space Grotesk';font-weight:600;font-size:.98rem;letter-spacing:-.02em}
+  .brand small{display:block;font-family:'Plus Jakarta Sans';font-weight:500;font-size:.62rem;letter-spacing:.22em;color:var(--dim);text-transform:uppercase}
+  .desktop-nav{display:flex;align-items:center;gap:2px}
+  .nav-link{
+    position:relative;color:var(--mut);font-weight:500;font-size:.87rem;cursor:pointer;
+    padding:9px 16px;border-radius:999px;display:flex;align-items:center;gap:8px;
+    transition:color .5s var(--ease),background .5s var(--ease);border:1px solid transparent;white-space:nowrap;
+  }
+  .nav-link svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5;opacity:.7}
+  .nav-link:hover{color:var(--txt);background:rgba(255,255,255,.05)}
+  .nav-link.active{color:var(--txt);background:rgba(124,108,255,.14);border-color:rgba(124,108,255,.25)}
+  .nav-cta{
+    display:flex;align-items:center;gap:10px;margin-left:6px;
+    background:#f2f2ee;color:#0a0a0e;border:none;border-radius:999px;
+    padding:6px 6px 6px 18px;font-weight:700;font-size:.84rem;cursor:pointer;
+    font-family:'Plus Jakarta Sans';transition:transform .5s var(--ease),box-shadow .5s var(--ease);
+  }
+  .nav-cta:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(255,255,255,.12)}
+  .nav-cta:active{transform:scale(.98)}
+  .nav-cta .orb{width:30px;height:30px;border-radius:50%;background:#0a0a0e;color:#fff;display:flex;align-items:center;justify-content:center;transition:transform .5s var(--ease)}
+  .nav-cta:hover .orb{transform:translate(1px,-1px)}
+  .nav-cta .orb svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
+
+  .burger{display:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.04);cursor:pointer;position:relative;flex-shrink:0}
+  .burger span{position:absolute;left:11px;right:11px;height:1.6px;background:#fff;border-radius:2px;transition:transform .6s var(--ease),top .6s var(--ease),opacity .4s var(--ease)}
+  .burger span:nth-child(1){top:15px}
+  .burger span:nth-child(2){top:23px}
+  .burger.open span:nth-child(1){top:19px;transform:rotate(45deg)}
+  .burger.open span:nth-child(2){top:19px;transform:rotate(-45deg)}
+
+  /* mobile overlay */
+  .m-overlay{position:fixed;inset:0;z-index:39;background:rgba(5,5,5,.82);backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
+    display:flex;flex-direction:column;justify-content:center;padding:100px 32px 40px;
+    opacity:0;pointer-events:none;transition:opacity .6s var(--ease)}
+  .m-overlay.open{opacity:1;pointer-events:auto}
+  .m-link{display:flex;align-items:baseline;gap:16px;padding:18px 4px;border-bottom:1px solid var(--line-soft);
+    font-family:'Space Grotesk';font-size:1.7rem;font-weight:600;letter-spacing:-.02em;cursor:pointer;color:var(--mut);
+    transform:translateY(48px);opacity:0;transition:transform .7s var(--ease),opacity .7s var(--ease),color .4s var(--ease)}
+  .m-overlay.open .m-link{transform:translateY(0);opacity:1}
+  .m-overlay.open .m-link:nth-child(1){transition-delay:.08s}
+  .m-overlay.open .m-link:nth-child(2){transition-delay:.15s}
+  .m-overlay.open .m-link:nth-child(3){transition-delay:.22s}
+  .m-overlay.open .m-link:nth-child(4){transition-delay:.29s}
+  .m-link small{font-family:'JetBrains Mono';font-size:.7rem;color:var(--dim)}
+  .m-link.active,.m-link:hover{color:var(--txt)}
+
+  .section{display:none}
+  .section.active{display:block}
+
+  /* ---------- type ---------- */
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:7px 14px;
+    font-size:.64rem;font-weight:600;text-transform:uppercase;letter-spacing:.22em;
+    border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--mut)}
+  .eyebrow::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--mint);box-shadow:0 0 12px var(--mint)}
+  h1.hero{font-family:'Space Grotesk';font-weight:700;letter-spacing:-.045em;line-height:.98;font-size:clamp(2.9rem,7vw,5.4rem);margin:26px 0 22px}
+  h1.hero .serif{font-family:'Instrument Serif';font-style:italic;font-weight:400;letter-spacing:-.02em;
+    background:linear-gradient(100deg,#cfc8ff,#5eead4 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{color:var(--mut);font-size:1.03rem;line-height:1.75;max-width:34rem}
+  .page-title{font-family:'Space Grotesk';font-weight:700;letter-spacing:-.04em;line-height:1.02;font-size:clamp(2.1rem,4.6vw,3.4rem);margin:22px 0 14px}
+  .page-title .serif{font-family:'Instrument Serif';font-style:italic;font-weight:400;background:linear-gradient(100deg,#cfc8ff,#5eead4);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--mut);max-width:32rem;line-height:1.75;font-size:.98rem}
+
+  /* ---------- buttons ---------- */
+  .btn-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
+  .btn-primary{
+    display:inline-flex;align-items:center;gap:14px;border:none;cursor:pointer;
+    background:#f2f2ee;color:#0a0a0e;border-radius:999px;padding:7px 7px 7px 26px;
+    font-weight:700;font-size:.92rem;font-family:'Plus Jakarta Sans';
+    transition:transform .5s var(--ease),box-shadow .5s var(--ease);
+  }
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 44px rgba(255,255,255,.1)}
+  .btn-primary:active{transform:scale(.98)}
+  .btn-primary .orb{width:38px;height:38px;border-radius:50%;background:#0a0a0e;color:#fff;display:flex;align-items:center;justify-content:center;transition:transform .5s var(--ease)}
+  .btn-primary:hover .orb{transform:translate(2px,-2px) scale(1.04)}
+  .btn-primary .orb svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .btn-ghost{
+    display:inline-flex;align-items:center;gap:12px;cursor:pointer;border-radius:999px;padding:14px 26px;
+    background:transparent;color:var(--txt);border:1px solid var(--line);
+    font-weight:600;font-size:.92rem;font-family:'Plus Jakarta Sans';
+    transition:border-color .5s var(--ease),background .5s var(--ease),transform .5s var(--ease);
+  }
+  .btn-ghost:hover{border-color:rgba(124,108,255,.5);background:rgba(124,108,255,.08);transform:translateY(-2px)}
+  .btn-ghost:active{transform:scale(.98)}
+  .btn-ghost svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5}
+
+  /* ---------- double bezel ---------- */
+  .shell{background:rgba(255,255,255,.035);border:1px solid var(--line-soft);border-radius:var(--r-lg);padding:7px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+  .core{background:linear-gradient(180deg,#0c0c12,#08080c);border:1px solid rgba(255,255,255,.05);
+    border-radius:var(--r-md);box-shadow:inset 0 1px 1px rgba(255,255,255,.09);position:relative;overflow:hidden}
+
+  /* ---------- hero layout : asymmetrical bento ---------- */
+  .hero-sec{padding:150px 0 40px;min-height:100dvh}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:start;margin-top:8px}
+  .hero-meta{display:flex;gap:18px;margin-top:38px;flex-wrap:wrap}
+  .hero-meta div{display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono';font-size:.72rem;color:var(--dim);letter-spacing:.04em}
+  .hero-meta i{width:28px;height:1px;background:rgba(255,255,255,.18);display:block}
+  .bento{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+  .b-console{grid-column:span 12}
+  .b-console .core{padding:0}
+  .term-bar{display:flex;align-items:center;gap:8px;padding:16px 20px;border-bottom:1px solid var(--line-soft)}
+  .term-bar b{width:10px;height:10px;border-radius:50%;border:1px solid rgba(255,255,255,.2);display:block}
+  .term-bar b:first-child{background:rgba(255,143,143,.7)}
+  .term-bar span{margin-left:auto;font-family:'JetBrains Mono';font-size:.68rem;color:var(--dim);letter-spacing:.08em}
+  .term-body{padding:26px 26px 28px;font-family:'JetBrains Mono';font-size:.92rem;line-height:2}
+  .term-body .cm{color:#565664;font-size:.72rem}
+  .f{color:#ececf2;font-size:1.02rem;letter-spacing:.01em}
+  .f .op{color:var(--mint);padding:0 .5em}
+  .f .hl{color:#c9c2ff}
+  .term-foot{display:flex;gap:10px;padding:0 22px 22px;flex-wrap:wrap}
+  .chip{font-family:'JetBrains Mono';font-size:.68rem;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:rgba(255,255,255,.03)}
+  .b-stat{grid-column:span 6}
+  .b-stat .core{padding:22px}
+  .b-stat .n{font-family:'Space Grotesk';font-size:2rem;font-weight:700;letter-spacing:-.03em}
+  .b-stat .n em{font-style:normal;color:var(--mint)}
+  .b-stat p{font-size:.76rem;color:var(--dim);margin-top:4px;letter-spacing:.06em;text-transform:uppercase}
+  .b-quiz{grid-column:span 6}
+  .b-quiz .core{padding:22px;height:100%;display:flex;flex-direction:column;justify-content:space-between;gap:14px;
+    background:linear-gradient(160deg,#141422,#0a0a10 70%)}
+  .b-quiz h4{font-family:'Space Grotesk';font-size:1.02rem;letter-spacing:-.01em}
+  .b-quiz p{font-size:.82rem;color:var(--mut)}
+  .mini-link{display:inline-flex;align-items:center;gap:8px;font-size:.82rem;font-weight:700;cursor:pointer;color:var(--txt)}
+  .mini-link .orb{width:26px;height:26px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;transition:transform .5s var(--ease),background .5s var(--ease)}
+  .mini-link:hover .orb{transform:translate(2px,-2px);background:rgba(124,108,255,.2)}
+  .mini-link svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8}
+
+  /* ---------- sections ---------- */
+  .feat-sec{padding:96px 0 120px}
+  .sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:36px;flex-wrap:wrap}
+  .sec-head h2{font-family:'Space Grotesk';font-size:clamp(1.7rem,3.4vw,2.5rem);letter-spacing:-.035em;line-height:1.05;margin-top:18px}
+  .sec-head h2 .serif{font-family:'Instrument Serif';font-style:italic;font-weight:400;color:#c9c2ff}
+  .sec-head p{color:var(--mut);font-size:.92rem;max-width:22rem}
+  .feat-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+  .f1{grid-column:span 7}.f2{grid-column:span 5}.f3{grid-column:span 5}.f4{grid-column:span 7}
+  .feat-grid .core{padding:30px;height:100%;transition:transform .6s var(--ease),border-color .6s var(--ease)}
+  .feat-grid .shell:hover .core{transform:translateY(-3px);border-color:rgba(124,108,255,.3)}
+  .ico{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;
+    border:1px solid var(--line);background:rgba(255,255,255,.04);box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
+  .ico svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.4}
+  .feat-grid h3{font-family:'Space Grotesk';font-size:1.08rem;letter-spacing:-.01em;margin-bottom:8px}
+  .feat-grid p{color:var(--mut);font-size:.88rem;line-height:1.7}
+  .feat-grid .idx{font-family:'JetBrains Mono';font-size:.66rem;color:var(--dim);letter-spacing:.18em;display:block;margin-bottom:14px}
+
+  /* ---------- rumus ---------- */
+  .page-sec{padding:150px 0 90px}
+  .rumus-layout{display:grid;grid-template-columns:250px 1fr;gap:26px;margin-top:44px;align-items:start}
+  .toc{position:sticky;top:100px;padding:8px}
+  .toc .core{padding:20px}
+  .toc h5{font-size:.64rem;letter-spacing:.24em;color:var(--dim);text-transform:uppercase;margin-bottom:14px}
+  .toc a{display:flex;gap:10px;align-items:center;font-size:.82rem;color:var(--mut);text-decoration:none;padding:8px 10px;border-radius:10px;transition:all .45s var(--ease);cursor:pointer}
+  .toc a:hover{color:var(--txt);background:rgba(255,255,255,.05)}
+  .toc a b{font-family:'JetBrains Mono';font-size:.64rem;color:var(--dim);font-weight:400}
+  .acc{display:flex;flex-direction:column;gap:12px}
+  .acc-item .core{transition:border-color .5s var(--ease)}
+  .acc-item.open .core{border-color:rgba(124,108,255,.35)}
+  .accordion-header{cursor:pointer;padding:20px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .acc-left{display:flex;align-items:center;gap:16px}
+  .acc-num{font-family:'JetBrains Mono';font-size:.7rem;color:var(--mint);border:1px solid rgba(94,234,212,.25);background:rgba(94,234,212,.06);
+    border-radius:10px;min-width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .acc-item:nth-child(even) .acc-num{color:#c9c2ff;border-color:rgba(124,108,255,.3);background:rgba(124,108,255,.08)}
+  .accordion-header h3{font-weight:600;font-size:.98rem;letter-spacing:-.01em;font-family:'Space Grotesk'}
+  .accordion-header p{color:var(--dim);font-size:.78rem;margin-top:3px;font-family:'JetBrains Mono'}
+  .accordion-arrow{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .6s var(--ease),background .5s var(--ease);color:var(--mut)}
+  .acc-item.open .accordion-arrow{transform:rotate(180deg);background:rgba(124,108,255,.15);color:#fff}
+  .accordion-arrow svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6}
+  .accordion-content{max-height:0;overflow:hidden;transition:max-height .7s var(--ease)}
+  .accordion-inner{padding:2px 22px 24px 82px}
+  .accordion-inner>p{color:var(--mut);font-size:.88rem;line-height:1.8;margin-bottom:14px}
+  .formula-block{background:rgba(124,108,255,.06);border:1px solid rgba(124,108,255,.18);border-radius:14px;
+    padding:18px 22px;font-size:1rem;text-align:center;font-weight:500;letter-spacing:.02em;margin-bottom:14px;
+    font-family:'JetBrains Mono';transition:border-color .5s var(--ease),background .5s var(--ease)}
+  .formula-block:hover{background:rgba(124,108,255,.09);border-color:rgba(124,108,255,.35)}
+  .formula-block small{display:block;font-family:'Plus Jakarta Sans';font-size:.68rem;color:var(--dim);margin-bottom:8px;letter-spacing:.14em;text-transform:uppercase}
+  .note{margin-top:6px;padding:13px 17px;background:rgba(94,234,160,.06);border-radius:12px;border-left:2px solid var(--green);font-size:.83rem;color:var(--mut);line-height:1.7}
+  .note.vio{background:rgba(124,108,255,.07);border-left-color:var(--vio)}
+  .note strong{color:var(--txt)}
+  .table-shell{margin-top:26px}
+  .table-shell .core{padding:30px}
+  .table-shell h3{font-family:'Space Grotesk';font-size:1.05rem;margin-bottom:6px;text-align:center}
+  .table-shell>p{text-align:center;color:var(--dim);font-size:.8rem;margin-bottom:20px;font-family:'JetBrains Mono'}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th{text-align:left;padding:12px 14px;color:#c9c2ff;font-weight:600;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;border-bottom:1px solid var(--line)}
+  td{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.045);color:var(--mut)}
+  td:last-child{font-family:'JetBrains Mono';color:#e8e8ef;font-size:.82rem}
+  td:first-child{font-family:'JetBrains Mono';color:var(--dim);font-size:.76rem}
+  tr:last-child td{border-bottom:none}
+  tr{transition:background .4s var(--ease)}
+  tbody tr:hover{background:rgba(124,108,255,.05)}
+
+  /* ---------- latihan ---------- */
+  .diff-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:40px}
+  .diff{cursor:pointer;text-align:left;background:none;border:none;font-family:inherit;color:inherit;padding:0}
+  .diff .core{padding:28px;height:100%;transition:transform .6s var(--ease),border-color .6s var(--ease)}
+  .diff:hover .core{transform:translateY(-4px);border-color:rgba(124,108,255,.35)}
+  .diff .lvl{font-family:'JetBrains Mono';font-size:.66rem;letter-spacing:.22em;color:var(--dim);text-transform:uppercase}
+  .diff h3{font-family:'Space Grotesk';font-size:1.5rem;letter-spacing:-.02em;margin:12px 0 6px}
+  .diff p{color:var(--mut);font-size:.85rem}
+  .diff .bar{height:3px;border-radius:99px;background:rgba(255,255,255,.07);margin:20px 0 16px;overflow:hidden}
+  .diff .bar i{display:block;height:100%;border-radius:99px}
+  .diff .foot{display:flex;align-items:center;justify-content:space-between}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:999px;font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  .badge-easy{background:rgba(94,234,160,.1);color:var(--green);border:1px solid rgba(94,234,160,.25)}
+  .badge-medium{background:rgba(245,198,107,.1);color:var(--amber);border:1px solid rgba(245,198,107,.25)}
+  .badge-hard{background:rgba(255,143,143,.1);color:var(--red);border:1px solid rgba(255,143,143,.25)}
+
+  .quiz-top{display:flex;align-items:center;justify-content:space-between;margin:40px 0 16px;flex-wrap:wrap;gap:12px}
+  .quiz-top .left{display:flex;align-items:center;gap:12px}
+  .quiz-top .count{color:var(--mut);font-size:.86rem;font-family:'JetBrains Mono'}
+  .btn-quit{background:transparent;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:9px 18px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .45s var(--ease)}
+  .btn-quit:hover{color:var(--txt);border-color:rgba(255,255,255,.25)}
+  .progress-bar{height:4px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;margin-bottom:22px}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--vio),var(--mint));border-radius:99px;transition:width .7s var(--ease)}
+  #question-card .core{padding:36px}
+  #question-text{font-size:1.12rem;font-weight:600;line-height:1.7;margin-bottom:24px;font-family:'Space Grotesk';letter-spacing:-.01em}
+  #question-text .qno{font-family:'JetBrains Mono';font-size:.7rem;color:var(--mint);display:block;margin-bottom:10px;letter-spacing:.2em}
+  #options-container{display:grid;gap:10px}
+  .quiz-option{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:14px;padding:15px 18px;cursor:pointer;
+    transition:all .45s var(--ease);font-size:.9rem;display:flex;gap:14px;align-items:center;color:#d8d8e0}
+  .quiz-option .k{font-family:'JetBrains Mono';font-size:.72rem;width:30px;height:30px;border-radius:9px;border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--dim);transition:all .45s var(--ease)}
+  .quiz-option:hover{border-color:rgba(124,108,255,.5);background:rgba(124,108,255,.07);transform:translateX(4px)}
+  .quiz-option:hover .k{border-color:rgba(124,108,255,.5);color:#fff}
+  .quiz-option.selected{border-color:rgba(124,108,255,.5)}
+  .quiz-option.correct{border-color:rgba(94,234,160,.6);background:rgba(94,234,160,.07)}
+  .quiz-option.correct .k{background:var(--green);border-color:var(--green);color:#06130c}
+  .quiz-option.incorrect{border-color:rgba(255,143,143,.6);background:rgba(255,143,143,.06)}
+  .quiz-option.incorrect .k{background:var(--red);border-color:var(--red);color:#1a0b0b}
+  #feedback-area{display:none;margin-top:18px;padding:17px 20px;border-radius:14px;animation:fadeUp .6s var(--ease)}
+  #feedback-text{font-size:.88rem;font-weight:700}
+  #feedback-explanation{font-size:.83rem;margin-top:6px;color:var(--mut);font-family:'JetBrains Mono';line-height:1.7}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+  .quiz-foot{display:flex;justify-content:flex-end;margin-top:22px}
+  #next-btn{display:none}
+
+  .result-shell{margin-top:40px}
+  .result-shell .core{padding:52px 40px;text-align:center}
+  .score-ring{width:132px;height:132px;border-radius:50%;margin:26px auto 30px;display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk';font-size:1.5rem;font-weight:700;position:relative;
+    background:radial-gradient(circle at 50% 40%,#17171f,#0a0a0f 75%);
+    border:1px solid rgba(124,108,255,.4);box-shadow:0 0 0 7px rgba(255,255,255,.03),0 0 60px rgba(124,108,255,.25),inset 0 1px 0 rgba(255,255,255,.12)}
+  .res-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:420px;margin:0 auto 26px}
+  .res-stats .n{font-family:'Space Grotesk';font-size:1.6rem;font-weight:700}
+  .res-stats .l{font-size:.68rem;color:var(--dim);letter-spacing:.16em;text-transform:uppercase;margin-top:2px}
+
+  /* ---------- kreator ---------- */
+  .creator-layout{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:44px;align-items:stretch}
+  .id-card .core{padding:0}
+  .id-banner{height:120px;background:linear-gradient(120deg,#1c1c2b,#101018 60%),radial-gradient(circle at 20% 50%,rgba(124,108,255,.4),transparent 60%),radial-gradient(circle at 85% 30%,rgba(94,234,212,.25),transparent 55%);border-bottom:1px solid var(--line-soft);position:relative;overflow:hidden}
+  .id-banner span{position:absolute;font-family:'JetBrains Mono';font-size:.62rem;letter-spacing:.3em;color:rgba(255,255,255,.35);left:24px;bottom:16px}
+  .avatar{width:84px;height:84px;border-radius:26px;background:linear-gradient(135deg,#23232f,#0d0d13);border:1px solid rgba(255,255,255,.14);
+    display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;font-size:1.5rem;margin:-42px auto 0;position:relative;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 16px 40px rgba(0,0,0,.5)}
+  .id-body{padding:22px 34px 36px;text-align:center}
+  .id-body h2{font-family:'Space Grotesk';font-size:1.45rem;letter-spacing:-.02em}
+  .id-body .role{color:#c9c2ff;font-size:.8rem;font-weight:600;margin:4px 0 24px;letter-spacing:.08em;text-transform:uppercase;font-size:.7rem}
+  .id-row{display:flex;align-items:center;gap:14px;padding:14px 18px;background:rgba(255,255,255,.025);border:1px solid var(--line-soft);border-radius:14px;margin-bottom:10px;text-align:left}
+  .id-row .ico{margin:0;width:38px;height:38px;flex-shrink:0}
+  .id-row small{display:block;font-size:.64rem;color:var(--dim);text-transform:uppercase;letter-spacing:.18em}
+  .id-row b{font-size:.92rem;font-weight:600}
+  .id-desc{margin-top:22px;padding-top:22px;border-top:1px solid var(--line-soft);color:var(--mut);font-size:.86rem;line-height:1.75}
+  .stack-card .core{padding:32px;height:100%;display:flex;flex-direction:column}
+  .stack-card h3{font-family:'Space Grotesk';font-size:1.1rem;margin-bottom:6px}
+  .stack-card>p{color:var(--mut);font-size:.86rem;margin-bottom:22px}
+  .codebox{font-family:'JetBrains Mono';font-size:.76rem;line-height:2;background:#07070b;border:1px solid var(--line-soft);border-radius:14px;padding:20px 22px;color:#b9b9c6;margin-bottom:22px;overflow-x:auto}
+  .codebox .k{color:#8f86ff}.codebox .s{color:#5eead4}.codebox .c{color:#4c4c5a}
+  .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+
+  footer{border-top:1px solid var(--line-soft);padding:30px 24px;margin-top:40px;position:relative;z-index:1}
+  footer .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:0}
+  footer p{color:var(--dim);font-size:.76rem;font-family:'JetBrains Mono'}
+  footer p strong{color:var(--mut)}
+
+  /* ---------- reveal ---------- */
+  .rv{opacity:0;transform:translateY(56px);filter:blur(12px);transition:opacity .9s var(--ease),transform .9s var(--ease),filter .9s var(--ease)}
+  .rv.in{opacity:1;transform:translateY(0);filter:blur(0)}
+  .rv-d1{transition-delay:.08s}.rv-d2{transition-delay:.16s}.rv-d3{transition-delay:.24s}
+
+  .particles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+  .particle{position:absolute;border-radius:50%;background:var(--vio);opacity:.12;animation:float 7s var(--ease) infinite}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+
+  @media(max-width:960px){
+    .hero-grid{grid-template-columns:1fr}
+    .rumus-layout{grid-template-columns:1fr}
+    .toc{position:static}
+    .toc-list{display:flex;overflow-x:auto;gap:6px;padding-bottom:6px}
+    .toc-list a{white-space:nowrap}
+    .creator-layout{grid-template-columns:1fr}
+    .f1,.f2,.f3,.f4{grid-column:span 12}
+  }
+  @media(max-width:768px){
+    .desktop-nav,.nav-cta{display:none}
+    .burger{display:block}
+    .wrap{padding:0 16px}
+    .hero-sec{padding:130px 0 24px}
+    .bento{grid-template-columns:1fr}
+    .b-console,.b-stat,.b-quiz{grid-column:span 1}
+    .diff-grid{grid-template-columns:1fr}
+    .feat-sec{padding:64px 0 80px}
+    .page-sec{padding:130px 0 64px}
+    #question-card .core{padding:24px 20px}
+    .accordion-inner{padding:2px 18px 22px}
+    .result-shell .core{padding:36px 22px}
+  }
+</style>
+</head>
+<body>
+
+<div class="orbs"><i class="o1"></i><i class="o2"></i><i class="o3"></i></div>
+<div class="gridlines"></div>
+<div class="grain"></div>
+<div class="particles" id="particles"></div>
+
+<!-- Floating island nav -->
+<header class="island">
+  <div class="island-inner">
+    <div class="brand" onclick="navigateTo('home')">
+      <div class="mark"><em>lg</em></div>
+      <div><b>LogMath</b><small>Logaritma · X</small></div>
+    </div>
+    <nav class="desktop-nav">
+      <div class="nav-link active" onclick="navigateTo('home')" data-nav="home">
+        <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5M5.5 10v9.5h13V10"/></svg>Beranda
+      </div>
+      <div class="nav-link" onclick="navigateTo('rumus')" data-nav="rumus">
+        <svg viewBox="0 0 24 24"><path d="M4 20V9m5.5 11V4M15 20v-8m5 8V7"/></svg>Rumus
+      </div>
+      <div class="nav-link" onclick="navigateTo('latihan')" data-nav="latihan">
+        <svg viewBox="0 0 24 24"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1Z"/></svg>Latihan
+      </div>
+      <div class="nav-link" onclick="navigateTo('kreator')" data-nav="kreator">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/></svg>Kreator
+      </div>
+    </nav>
+    <button class="nav-cta" onclick="navigateTo('latihan')">Mulai
+      <span class="orb"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
+    </button>
+    <button class="burger" id="burger" onclick="toggleMobileMenu()" aria-label="Menu"><span></span><span></span></button>
+  </div>
+</header>
+
+<div class="m-overlay" id="mobileMenu">
+  <div class="m-link active" data-nav="home" onclick="navigateTo('home');toggleMobileMenu();"><small>01</small>Beranda</div>
+  <div class="m-link" data-nav="rumus" onclick="navigateTo('rumus');toggleMobileMenu();"><small>02</small>Rumus</div>
+  <div class="m-link" data-nav="latihan" onclick="navigateTo('latihan');toggleMobileMenu();"><small>03</small>Latihan Soal</div>
+  <div class="m-link" data-nav="kreator" onclick="navigateTo('kreator');toggleMobileMenu();"><small>04</small>Kreator</div>
+</div>
+
+<!-- ==================== HOME ==================== -->
+<section class="section active" id="section-home">
+  <div class="hero-sec">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div>
+          <span class="eyebrow">Modul 01 — Eksponen &amp; Logaritma</span>
+          <h1 class="hero">Logaritma,<br>dijelaskan dengan <span class="serif">presisi.</span></h1>
+          <p class="lede">Satu tempat untuk memahami definisi, sepuluh sifat inti, dan menguji pemahaman lewat 30 soal bertahap — dari komputasi basis hingga manipulasi rantai logaritma.</p>
+          <div class="btn-row">
+            <button class="btn-primary" onclick="navigateTo('rumus')">Pelajari rumus
+              <span class="orb"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
+            </button>
+            <button class="btn-ghost" onclick="navigateTo('latihan')">
+              <svg viewBox="0 0 24 24"><path d="M6 4.5v15l13-7.5-13-7.5Z"/></svg>Mulai latihan
+            </button>
+          </div>
+          <div class="hero-meta">
+            <div><i></i>12 MATERI INTI</div>
+            <div><i></i>30 SOAL INTERAKTIF</div>
+            <div><i></i>3 TINGKAT</div>
+          </div>
+        </div>
+        <div class="bento">
+          <div class="shell b-console rv in">
+            <div class="core">
+              <div class="term-bar"><b></b><b></b><b></b><span>definisi.py — logaritma</span></div>
+              <div class="term-body">
+                <div class="cm">// hubungan eksponen ⇄ logaritma</div>
+                <div class="f"><span class="hl">ₐlog</span> c = b <span class="op">⟺</span> aᵇ = c</div>
+                <div class="f">₂log 8 = <span class="hl">3</span> <span class="op">∵</span> 2³ = 8</div>
+                <div class="cm">// syarat: a &gt; 0, a ≠ 1, c &gt; 0</div>
+              </div>
+              <div class="term-foot">
+                <span class="chip">basis → a</span><span class="chip">numerus → c</span><span class="chip">hasil → b</span>
+              </div>
+            </div>
+          </div>
+          <div class="shell b-stat rv in">
+            <div class="core">
+              <div class="n">10<em>＋2</em></div>
+              <p>Sifat + bentuk khusus</p>
+            </div>
+          </div>
+          <div class="shell b-quiz rv in">
+            <div class="core">
+              <div><h4>Siap diuji?</h4><p>Easy → Medium → Hard, dengan pembahasan tiap soal.</p></div>
+              <a class="mini-link" onclick="navigateTo('latihan')">Buka latihan <span class="orb"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></span></a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="feat-sec">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <div><span class="eyebrow">Kenapa LogMath</span>
+          <h2>Dirancang untuk<br>pemahaman <span class="serif">mendalam.</span></h2>
+        </div>
+        <p>Struktur belajar yang linear: pahami definisi, kuasai sifat, lalu validasi lewat soal berjenjang.</p>
+      </div>
+      <div class="feat-grid">
+        <div class="shell f1 rv"><div class="core">
+          <span class="idx">/ 01</span>
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/></svg></div>
+          <h3>Referensi sifat yang rapi</h3>
+          <p>Dua belas kartu materi — definisi, log umum &amp; natural, hingga sepuluh sifat — masing-masing dengan rumus unicode yang presisi, contoh numerik, dan tabel ringkasan akhir.</p>
+        </div></div>
+        <div class="shell f2 rv rv-d1"><div class="core">
+          <span class="idx">/ 02</span>
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"/><rect x="4" y="3.5" width="16" height="17" rx="3"/></svg></div>
+          <h3>Latihan berjenjang</h3>
+          <p>Tiga puluh soal Easy, Medium, Hard dengan umpan balik instan dan pembahasan langkah per langkah.</p>
+        </div></div>
+        <div class="shell f3 rv"><div class="core">
+          <span class="idx">/ 03</span>
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 17V7m0 10h16M7 14l3-3 3 2 4-5"/></svg></div>
+          <h3>Skor &amp; evaluasi</h3>
+          <p>Lacak jawaban benar, salah, dan persentase akhir lengkap dengan rekomendasi langkah berikutnya.</p>
+        </div></div>
+        <div class="shell f4 rv rv-d1"><div class="core">
+          <span class="idx">/ 04</span>
+          <div class="ico"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></div>
+          <h3>Dibaca nyaman di semua layar</h3>
+          <p>Layout bento asimetris di desktop yang runtuh menjadi satu kolom lega di tablet dan ponsel. Rumus monospace tetap terbaca tanpa scroll horizontal yang menyiksa.</p>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== RUMUS ==================== -->
+<section class="section" id="section-rumus">
+  <div class="page-sec"><div class="wrap">
+    <span class="eyebrow">Referensi — 12 kartu</span>
+    <h1 class="page-title">Rumus &amp; sifat <span class="serif">logaritma.</span></h1>
+    <p class="sub">Klik setiap kartu untuk membuka penjelasan, rumus formal, dan contoh. Notasi memakai unicode subscript agar basis dan pangkat terbaca jelas.</p>
+
+    <div class="rumus-layout">
+      <aside class="shell toc rv"><div class="core">
+        <h5>Daftar isi</h5>
+        <div class="toc-list" id="tocList">
+          <a onclick="jumpAcc(0)"><b>00</b>Definisi</a>
+          <a onclick="jumpAcc(1)"><b>01</b>Umum &amp; Natural</a>
+          <a onclick="jumpAcc(2)"><b>02</b>Log dari 1</a>
+          <a onclick="jumpAcc(3)"><b>03</b>Basis sendiri</a>
+          <a onclick="jumpAcc(4)"><b>04</b>Perkalian</a>
+          <a onclick="jumpAcc(5)"><b>05</b>Pembagian</a>
+          <a onclick="jumpAcc(6)"><b>06</b>Perpangkatan</a>
+          <a onclick="jumpAcc(7)"><b>07</b>Pangkat basis</a>
+          <a onclick="jumpAcc(8)"><b>08</b>Ubah basis</a>
+          <a onclick="jumpAcc(9)"><b>09</b>Rantai</a>
+          <a onclick="jumpAcc(10)"><b>10</b>Invers</a>
+          <a onclick="jumpAcc(11)"><b>11</b>Antilogaritma</a>
+        </div>
+      </div></aside>
+
+      <div class="acc" id="accList">
+        <div class="shell acc-item rv"><div class="core">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-left"><div class="acc-num">00</div>
+              <div><h3>Definisi Logaritma</h3><p>ₐlog c = b ⟺ aᵇ = c</p></div></div>
+            <div class="accordion-arrow"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="accordion-content"><div class="accordion-inner">
+            <p>Logaritma adalah invers dari perpangkatan. Jika <strong>aᵇ = c</strong>, maka logaritma basis <strong>a</strong> dari <strong>c</strong> adalah <strong>b</strong>.</p>
+            <div class="formula-block">ₐlog c = b &nbsp;⟺&nbsp; aᵇ = c</div>
+            <p>Syarat: <strong>a &gt; 0, a ≠ 1</strong> (basis), <strong>c &gt; 0</strong> (numerus).</p>
+            <div class="note"><strong>Contoh:</strong> ₂log 8 = 3, karena 2³ = 8.</div>
+          </div></div>
+        </div></div>
+
+        <div class="shell acc-item rv"><div class="core">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-left"><div class="acc-num">01</div>
+              <div><h3>Logaritma Umum &amp; Natural</h3><p>log x · ln x</p></div></div>
+            <div class="accordion-arrow"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="accordion-content"><div class="accordion-inner">
+            <div class="formula-block"><small>Logaritma umum — basis 10</small>log x = ₁₀log x</div>
+            <div class="formula-block"><small>Logaritma natural — basis e ≈ 2,718</small>ln x = ₑlog x</div>
+            <div class="note vio"><strong>Konvensi:</strong> penulisan “log” tanpa basis berarti basis 10, sedangkan “ln” berarti basis e (bilangan Euler).</div>
+          </div></div>
+        </div></div>
+
+        <div class="shell acc-item rv"><div class="core">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-left"><div class="acc-num">02</div>
+              <div><h3>Logaritma dari 1</h3><p>ₐlog 1 = 0</p></div></div>
+            <div class="accordion-arrow"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="accordion-content"><div class="accordion-inner">
+            <div class="formula-block">ₐlog 1 = 0 &nbsp;&nbsp;·&nbsp;&nbsp; a &gt; 0, a ≠ 1</div>
+            <p>Sebab bilangan berapa pun dipangkatkan 0 hasilnya 1 — yakni a⁰ = 1.</p>
+            <div class="note"><strong>Contoh:</strong> ₅log 1 = 0 · ₁₀log 1 = 0.</div>
+          </div></div>
+        </div></div>
+
+        <div class="shell acc-item rv"><div class="core">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-left"><div class="acc-num">03</div>
+              <div><h3>Logaritma Basis Sendiri</h3><p>ₐlog a = 1</p></div></div>
+            <div class="accordion-arrow"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="accordion-content"><div class="accordion-inner">
+            <div class="formula-block">ₐlog a = 1</div>
+            <p>Sebab a¹ = a, logaritma suatu basis terhadap dirinya sendiri selalu 1.</p>
+            <div class="note"><strong>Contoh:</strong> ₃log 3 = 1 · ₇log 7 = 1.</div>
+          </div></div>
+        </div></div>
+
+        <div class="shell acc-item rv"><div class="core">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-left"><div class="acc-num">04</div>
+              <div><h3>Logaritma Perkalian</h3><p>ₐlog (b·c) = ₐlog b + ₐlog c</p></div></div>
+            <div class="accordion-arrow"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="accordion-content"><div class="accordion-inner">
+            <div class="formula-block">ₐlog (b × c) = ₐlog b + ₐlog c</div>
+            <p>Logaritma dari perkalian terurai menjadi jumlah logaritma tiap faktor.</p>
+            <div class="note"><strong>Contoh:</strong> ₂log 12 = ₂log (4×3) = ₂log 4 + ₂log 3 = 2 + ₂log 3.</div>
+          </div></div>
+        </div></div>
+
+        <div class="shell acc-item rv"><div class="core">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-left"><div class="acc-num">05</div>
+              <div><h3>Logaritma Pembagian</h3><p>ₐlog (b⁄c) = ₐlog b − ₐlog c</p></div></div>
+            <div class="accordion-arrow"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="accordion-content"><div class="accordion-inner">
+            <div class="formula-block">ₐlog (b ⁄ c) = ₐlog b − ₐlog c</div>
+            <p>Logaritma dari pembagian sama dengan selisih logaritma pembilang dan penyebut.</p>
+            <div class="note"><strong>Contoh:</strong> ₂log (8⁄2) = ₂log 8 − ₂log 2 = 3 − 1 = 2.</div>
+          </div></div>
+        </div></div>
+
+        <div class="shell acc-item rv"><div class="core">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-left"><div class="acc-num">06</div>
+              <div><h3>Logaritma Perpangkatan</h3><p>ₐlog bⁿ = n · ₐlog b</p></div></div>
+            <div class="accordion-arrow"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="accordion-content"><div class="accordion-inner">
+            <div class="formula-block">ₐlog bⁿ = n × ₐlog b</div>
+            <p>Pangkat pada numerus turun menjadi koefisien di depan logaritma.</p>
+            <div class="note"><strong>Contoh:</strong> ₂log 8 = ₂log 2³ = 3 × ₂log 2 = 3.</div>
+          </div></div>
+        </div></div>
+
+        <div class="shell acc-item rv"><div class="core">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-left"><div class="acc-num">07</div>
+              <div><h3>Pangkat pada Basis</h3><p>ₐₘlog bⁿ = (n⁄m) · ₐlog b</p></div></div>
+            <div class="accordion-arrow"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="accordion-content"><div class="accordion-inner">
+            <div class="formula-block"><span style="font-size:.85em">aᵐ</span>log bⁿ = (n ⁄ m) × ₐlog b</div>
+            <p>Pangkat pada basis dan numerus keluar sebagai faktor pecahan n⁄m.</p>
+            <div class="note"><strong>Contoh:</strong> ₄log 8 = <span style="font-family:'JetBrains Mono'">₂²log 2³</span> = (3⁄2) × ₂log 2 = ³⁄₂.</div>
+          </div></div>
+        </div></div>
+
+        <div class="shell acc-item rv"><div class="core">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-left"><div class="acc-num">08</div>
+              <div><h3>Perubahan Basis</h3><p>ₐlog b = ᶜlog b ⁄ ᶜlog a</p></div></div>
+            <div class="accordion-arrow"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="accordion-content"><div class="accordion-inner">
+            <div class="formula-block">ₐlog b = ᶜlog b ⁄ ᶜlog a</div>
+            <p>Memindahkan logaritma ke basis baru — berguna saat basis tidak tersedia di kalkulator.</p>
+            <div class="note"><strong>Contoh:</strong> ₃log 5 = log 5 ⁄ log 3 (dipindah ke basis 10).</div>
+          </div></div>
+        </div></div>
+
+        <div class="shell acc-item rv"><div class="core">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-left"><div class="acc-num">09</div>
+              <div><h3>Rantai Logaritma</h3><p>ₐlog b × ᵦlog c = ₐlog c</p></div></div>
+            <div class="accordion-arrow"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="accordion-content"><div class="accordion-inner">
+            <div class="formula-block">ₐlog b × ᵦlog c = ₐlog c</div>
+            <p>Jika numerus log pertama sama dengan basis log kedua, keduanya menyusut menjadi satu log.</p>
+            <div class="note"><strong>Contoh:</strong> ₂log 3 × ₃log 8 = ₂log 8 = 3.</div>
+          </div></div>
+        </div></div>
+
+        <div class="shell acc-item rv"><div class="core">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-left"><div class="acc-num">10</div>
+              <div><h3>Invers Logaritma</h3><p>ₐlog b = 1 ⁄ ᵦlog a</p></div></div>
+            <div class="accordion-arrow"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="accordion-content"><div class="accordion-inner">
+            <div class="formula-block">ₐlog b = 1 ⁄ ᵦlog a</div>
+            <p>Menukar basis dan numerus menghasilkan nilai kebalikannya.</p>
+            <div class="note"><strong>Contoh:</strong> ₂log 5 = 1 ⁄ ₅log 2.</div>
+          </div></div>
+        </div></div>
+
+        <div class="shell acc-item rv"><div class="core">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-left"><div class="acc-num">11</div>
+              <div><h3>Antilogaritma</h3><p>a^(ₐlog b) = b</p></div></div>
+            <div class="accordion-arrow"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+          <div class="accordion-content"><div class="accordion-inner">
+            <div class="formula-block">a<sup>ₐlog b</sup> = b</div>
+            <p>Basis yang dipangkatkan logaritmanya sendiri kembali ke numerus semula.</p>
+            <div class="note"><strong>Contoh:</strong> 2<sup>₂log 8</sup> = 8.</div>
+          </div></div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="shell table-shell rv"><div class="core">
+      <h3>Ringkasan semua sifat</h3>
+      <p>10 sifat + 2 bentuk khusus — satu tabel contekan</p>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>No</th><th>Sifat</th><th>Rumus</th></tr></thead>
+        <tbody>
+          <tr><td>01</td><td>Log dari 1</td><td>ₐlog 1 = 0</td></tr>
+          <tr><td>02</td><td>Log basis sendiri</td><td>ₐlog a = 1</td></tr>
+          <tr><td>03</td><td>Perkalian</td><td>ₐlog (b×c) = ₐlog b + ₐlog c</td></tr>
+          <tr><td>04</td><td>Pembagian</td><td>ₐlog (b⁄c) = ₐlog b − ₐlog c</td></tr>
+          <tr><td>05</td><td>Perpangkatan</td><td>ₐlog bⁿ = n·ₐlog b</td></tr>
+          <tr><td>06</td><td>Pangkat basis</td><td>aᵐlog bⁿ = (n⁄m)·ₐlog b</td></tr>
+          <tr><td>07</td><td>Ubah basis</td><td>ₐlog b = ᶜlog b ⁄ ᶜlog a</td></tr>
+          <tr><td>08</td><td>Rantai</td><td>ₐlog b × ᵦlog c = ₐlog c</td></tr>
+          <tr><td>09</td><td>Invers</td><td>ₐlog b = 1 ⁄ ᵦlog a</td></tr>
+          <tr><td>10</td><td>Antilogaritma</td><td>a^(ₐlog b) = b</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ==================== LATIHAN ==================== -->
+<section class="section" id="section-latihan">
+  <div class="page-sec"><div class="wrap" style="max-width:860px">
+    <span class="eyebrow">Latihan — 30 soal</span>
+    <h1 class="page-title">Uji pemahaman<span class="serif">mu.</span></h1>
+    <p class="sub">Pilih tingkat kesulitan. Setiap jawaban langsung dikoreksi beserta pembahasannya.</p>
+
+    <div id="difficulty-select" class="diff-grid">
+      <button class="shell diff rv" onclick="startQuiz('easy')"><span class="core" style="display:block">
+        <span class="lvl">Tingkat — 01</span><h3>Easy</h3><p>Komputasi basis &amp; definisi dasar.</p>
+        <span class="bar"><i style="width:33%;background:var(--green)"></i></span>
+        <span class="foot"><span class="badge badge-easy">10 soal</span><span class="mini-link">Mulai <span class="orb"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></span></span></span>
+      </span></button>
+      <button class="shell diff rv rv-d1" onclick="startQuiz('medium')"><span class="core" style="display:block">
+        <span class="lvl">Tingkat — 02</span><h3>Medium</h3><p>Penerapan sifat jumlah &amp; selisih.</p>
+        <span class="bar"><i style="width:66%;background:var(--amber)"></i></span>
+        <span class="foot"><span class="badge badge-medium">10 soal</span><span class="mini-link">Mulai <span class="orb"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></span></span></span>
+      </span></button>
+      <button class="shell diff rv rv-d2" onclick="startQuiz('hard')"><span class="core" style="display:block">
+        <span class="lvl">Tingkat — 03</span><h3>Hard</h3><p>Rantai, ubah basis &amp; persamaan.</p>
+        <span class="bar"><i style="width:100%;background:var(--red)"></i></span>
+        <span class="foot"><span class="badge badge-hard">10 soal</span><span class="mini-link">Mulai <span class="orb"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></span></span></span>
+      </span></button>
+    </div>
+
+    <div id="quiz-area" style="display:none">
+      <div class="quiz-top">
+        <div class="left"><span id="quiz-badge" class="badge badge-easy">EASY</span>
+          <span class="count">Soal <span id="q-current">1</span> ⁄ <span id="q-total">10</span></span></div>
+        <button class="btn-quit" onclick="resetQuiz()">Keluar</button>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="quiz-progress" style="width:10%"></div></div>
+      <div class="shell" id="question-card"><div class="core">
+        <h3 id="question-text"></h3>
+        <div id="options-container"></div>
+        <div id="feedback-area"><p id="feedback-text"></p><p id="feedback-explanation"></p></div>
+        <div class="quiz-foot"><button class="btn-primary" id="next-btn" onclick="nextQuestion()">Soal berikutnya<span class="orb"><svg viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></span></button></div>
+      </div></div>
+    </div>
+
+    <div id="result-area" class="shell result-shell" style="display:none"><div class="core">
+      <span class="eyebrow">Hasil akhir</span>
+      <h2 class="page-title" style="font-size:2rem">Kuis selesai.</h2>
+      <p class="sub" style="margin:0 auto;text-align:center">Berikut rekap performa latihanmu.</p>
+      <div class="score-ring" id="score-display">0</div>
+      <div class="res-stats">
+        <div><div class="n" style="color:var(--green)" id="correct-count">0</div><div class="l">Benar</div></div>
+        <div><div class="n" style="color:var(--red)" id="wrong-count">0</div><div class="l">Salah</div></div>
+        <div><div class="n" style="color:#c9c2ff" id="score-percent">0%</div><div class="l">Skor</div></div>
+      </div>
+      <p id="score-message" style="color:var(--mut);font-size:.92rem;margin-bottom:26px"></p>
+      <div class="btn-row" style="justify-content:center;margin-top:0">
+        <button class="btn-primary" onclick="resetQuiz()">Ulangi latihan<span class="orb"><svg viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 2 6M4 10V4m0 6h6"/></svg></span></button>
+        <button class="btn-ghost" onclick="navigateTo('rumus')">Kembali ke rumus</button>
+      </div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ==================== KREATOR ==================== -->
+<section class="section" id="section-kreator">
+  <div class="page-sec"><div class="wrap" style="max-width:980px">
+    <span class="eyebrow">Kreator</span>
+    <h1 class="page-title">Di balik <span class="serif">LogMath.</span></h1>
+    <p class="sub">Media pembelajaran logaritma yang dibangun sebagai proyek sekolah — dirancang, ditulis, dan dipoles langsung dari kode.</p>
+    <div class="creator-layout">
+      <div class="shell id-card rv"><div class="core">
+        <div class="id-banner"><span>PROFILE — XE-6 / SMAGA PWT</span></div>
+        <div class="avatar">LP</div>
+        <div class="id-body">
+          <h2>Luki Pratama</h2>
+          <div class="role">Pelajar · Web Developer</div>
+          <div class="id-row"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/></svg></div>
+            <div><small>Nama</small><b>Luki Pratama</b></div></div>
+          <div class="id-row"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 10 12 5l8 5-8 5-8-5Z"/><path d="M6 12v4c0 1.5 2.7 3 6 3s6-1.5 6-3v-4M20 10v6"/></svg></div>
+            <div><small>Kelas</small><b>XE-6</b></div></div>
+          <div class="id-row"><div class="ico"><svg viewBox="0 0 24 24"><path d="M3 9.5 12 5l9 4.5M5 10v8m4-7v6m4-8v8m4-6v5m4-6v7M3 20h18"/></svg></div>
+            <div><small>Sekolah</small><b>SMAGA PWT</b></div></div>
+          <p class="id-desc">Website ini disusun untuk membantu teman-teman memahami <strong style="color:var(--txt)">logaritma</strong> — dari konsep, rumus, hingga sifat-sifatnya — secara interaktif dan langsung bisa dilatih.</p>
+        </div>
+      </div></div>
+      <div class="shell stack-card rv rv-d1"><div class="core">
+        <h3>Catatan implementasi</h3>
+        <p>Satu file statis. Tanpa framework, tanpa build step — seluruh navigasi, akordeon, dan mesin kuis berjalan di JavaScript vanilla.</p>
+        <div class="codebox"><span class="c">// mesin kuis — state minimal</span><br><span class="k">let</span> currentIndex = <span class="s">0</span>, score = <span class="s">0</span>;<br><span class="k">function</span> <span class="s">nextQuestion</span>() {<br>&nbsp;&nbsp;currentIndex++ → showQuestion() → showResult();<br>}</div>
+        <div class="pills">
+          <span class="chip">HTML5</span><span class="chip">CSS3</span><span class="chip">JavaScript</span><span class="chip">Responsif</span><span class="chip">ₐlog · unicode</span>
+        </div>
+      </div></div>
+    </div>
+  </div></div>
+</section>
+
+<footer><div class="wrap">
+  <p>© 2026 <strong>LogMath</strong> — Luki Pratama · XE-6 · SMAGA PWT</p>
+  <p>ₐlog c = b ⟺ aᵇ = c</p>
+</div></footer>
+
+<script>
+// ====== NAVIGATION ======
+function navigateTo(page){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('section-'+page).classList.add('active');
+  document.querySelectorAll('[data-nav]').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('[data-nav="'+page+'"]').forEach(n=>n.classList.add('active'));
+  window.scrollTo({top:0,behavior:'smooth'});
+  requestAnimationFrame(observeReveals);
+}
+function toggleMobileMenu(){
+  document.getElementById('mobileMenu').classList.toggle('open');
+  document.getElementById('burger').classList.toggle('open');
+}
+// ====== ACCORDION ======
+function toggleAccordion(header){
+  const item=header.closest('.acc-item');
+  const content=header.nextElementSibling;
+  const isOpen=item.classList.contains('open');
+  item.classList.toggle('open');
+  content.style.maxHeight=isOpen?'0px':content.scrollHeight+'px';
+}
+function jumpAcc(i){
+  const items=document.querySelectorAll('#accList .acc-item');
+  const it=items[i]; if(!it) return;
+  if(!it.classList.contains('open')) toggleAccordion(it.querySelector('.accordion-header'));
+  it.scrollIntoView({behavior:'smooth',block:'center'});
+}
+// ====== REVEAL (IntersectionObserver only) ======
+let io=null;
+function observeReveals(){
+  const els=document.querySelectorAll('.section.active .rv');
+  if(!('IntersectionObserver' in window)){els.forEach(e=>e.classList.add('in'));return;}
+  if(io) io.disconnect();
+  io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12});
+  els.forEach(e=>io.observe(e));
+}
+document.addEventListener('DOMContentLoaded',observeReveals);
+// ====== PARTICLES ======
+function createParticles(){
+  const c=document.getElementById('particles');
+  for(let i=0;i<26;i++){
+    const p=document.createElement('div');p.className='particle';
+    p.style.left=Math.random()*100+'%';p.style.top=Math.random()*100+'%';
+    p.style.animationDelay=(Math.random()*6)+'s';
+    p.style.animationDuration=(5+Math.random()*5)+'s';
+    const s=(2+Math.random()*3)+'px';p.style.width=s;p.style.height=s;
+    if(i%5===0){p.style.background='#5eead4';}
+    c.appendChild(p);
+  }
+}
+createParticles();
+
+// ====== QUIZ DATA (unicode rapi, jawaban & urutan dipertahankan) ======
+const quizData={
+easy:[
+{q:'Berapakah nilai ₂log 8?',options:['2','3','4','6'],answer:1,explanation:'₂log 8 = ₂log 2³ = 3, karena 2³ = 8'},
+{q:'Berapakah nilai ₅log 1?',options:['0','1','5','−1'],answer:0,explanation:'ₐlog 1 = 0 untuk semua basis a, karena a⁰ = 1'},
+{q:'Berapakah nilai ₃log 3?',options:['0','3','1','9'],answer:2,explanation:'ₐlog a = 1, karena 3¹ = 3'},
+{q:'Berapakah nilai ₁₀log 100?',options:['1','10','2','100'],answer:2,explanation:'₁₀log 100 = ₁₀log 10² = 2'},
+{q:'Berapakah nilai ₂log 16?',options:['2','3','4','8'],answer:2,explanation:'₂log 16 = ₂log 2⁴ = 4, karena 2⁴ = 16'},
+{q:'Berapakah nilai ₄log 64?',options:['2','3','4','16'],answer:1,explanation:'₄log 64 = ₄log 4³ = 3, karena 4³ = 64'},
+{q:'Berapakah nilai ₂log 32?',options:['3','4','5','6'],answer:2,explanation:'₂log 32 = ₂log 2⁵ = 5, karena 2⁵ = 32'},
+{q:'Jika ₂log x = 4, berapakah x?',options:['4','8','16','32'],answer:2,explanation:'₂log x = 4 → x = 2⁴ = 16'},
+{q:'Berapakah nilai ₁₀log 1000?',options:['1','2','3','10'],answer:2,explanation:'₁₀log 1000 = ₁₀log 10³ = 3'},
+{q:'Berapakah nilai ₃log 81?',options:['2','3','4','9'],answer:2,explanation:'₃log 81 = ₃log 3⁴ = 4, karena 3⁴ = 81'}
+],
+medium:[
+{q:'Hitunglah ₂log 4 + ₂log 8!',options:['3','5','7','12'],answer:1,explanation:'₂log 4 + ₂log 8 = 2 + 3 = 5'},
+{q:'Sederhanakan ₂log 32 − ₂log 4!',options:['1','2','3','4'],answer:2,explanation:'₂log 32 − ₂log 4 = ₂log (32⁄4) = ₂log 8 = 3'},
+{q:'Berapakah nilai ₂log 4 × ₄log 8?',options:['2','3','4','6'],answer:1,explanation:'₂log 4 × ₄log 8 = ₂log 8 = 3 (sifat rantai)'},
+{q:'Hitunglah ₃log 27 + ₃log 9!',options:['3','4','5','6'],answer:2,explanation:'₃log 27 + ₃log 9 = 3 + 2 = 5'},
+{q:'Jika ₂log 3 = a, maka ₂log 12 = …',options:['a + 2','2a','3a','a + 1'],answer:0,explanation:'₂log 12 = ₂log (4×3) = ₂log 4 + ₂log 3 = 2 + a'},
+{q:'Berapakah nilai ₄log 2?',options:['¼','½','2','4'],answer:1,explanation:'₄log 2 = ₂²log 2 = (1⁄2)·₂log 2 = ½'},
+{q:'Hitunglah ₂log 48 − ₂log 6!',options:['2','3','4','8'],answer:1,explanation:'₂log 48 − ₂log 6 = ₂log (48⁄6) = ₂log 8 = 3'},
+{q:'Jika ₂log 5 = p, maka ₄log 5 = …',options:['p ⁄ 2','2p','p','p²'],answer:0,explanation:'₄log 5 = ₂log 5 ⁄ ₂log 4 = p ⁄ 2'},
+{q:'Berapakah nilai ₉log 27?',options:['⅓','⅔','³⁄₂','3'],answer:2,explanation:'₉log 27 = ₃²log 3³ = (3⁄2)·₃log 3 = ³⁄₂'},
+{q:'Hitunglah ₂log 2⁵!',options:['2','3','4','5'],answer:3,explanation:'₂log 2⁵ = 5·₂log 2 = 5 × 1 = 5 (sifat perpangkatan)'}
+],
+hard:[
+{q:'Jika ₂log 3 = a dan ₂log 5 = b, maka ₂log 45 = …',options:['a + b','2a + b','a + 2b','ab'],answer:1,explanation:'₂log 45 = ₂log (9×5) = ₂log 3² + ₂log 5 = 2a + b'},
+{q:'Hitunglah ₂log 3 × ₃log 5 × ₅log 8!',options:['1','2','3','4'],answer:2,explanation:'Rantai: ₂log 3 × ₃log 5 × ₅log 8 = ₂log 8 = 3'},
+{q:'Jika log 2 = 0,301 dan log 3 = 0,477, berapakah log 12?',options:['0,778','1,079','0,954','1,255'],answer:1,explanation:'log 12 = log (4×3) = log 2² + log 3 = 2(0,301) + 0,477 = 1,079'},
+{q:'Nilai x yang memenuhi ₂log (x−1) = 3 adalah …',options:['7','8','9','10'],answer:2,explanation:'₂log (x−1) = 3 → x−1 = 2³ = 8 → x = 9'},
+{q:'Berapakah nilai ₂log 6 + ₂log 8 − ₂log 3?',options:['2','3','4','5'],answer:2,explanation:'₂log 6 + ₂log 8 − ₂log 3 = ₂log (6×8⁄3) = ₂log 16 = 4'},
+{q:'Jika ₂₇log x = ⅔, maka x = …',options:['3','9','18','27'],answer:1,explanation:'₂₇log x = ⅔ → x = 27^(⅔) = (3³)^(⅔) = 3² = 9'},
+{q:'Hitunglah ₈log 4 + ₈log 16!',options:['1','2','⁷⁄₃','⁸⁄₃'],answer:1,explanation:'₈log 4 = ⅔, ₈log 16 = ⁴⁄₃ → ⅔ + ⁴⁄₃ = ⁶⁄₃ = 2'},
+{q:'Nilai ₂log 3 × ₃log 4 × ₄log 5 × ₅log 32 = …',options:['3','4','5','6'],answer:2,explanation:'Rantai: = ₂log 32 = 5'},
+{q:'Jika ₃log 2 = a, maka ₁₂log 16 = …',options:['4a ⁄ (2a+1)','4 ⁄ (a+2)','4a ⁄ (a+2)','2a ⁄ (a+1)'],answer:0,explanation:'₁₂log 16 = ₃log 16 ⁄ ₃log 12 = 4·₃log 2 ⁄ (₃log 4 + ₃log 3) = 4a ⁄ (2a+1)'},
+{q:'Hitunglah ₂log (√8 × ⁴√16)!',options:['2','⁵⁄₂','3','⁷⁄₂'],answer:1,explanation:'√8 = 2^(³⁄₂), ⁴√16 = 2 → ₂log (2^(³⁄₂) × 2) = ₂log 2^(⁵⁄₂) = ⁵⁄₂'}
+]
+};
+
+// ====== QUIZ ENGINE (logika dipertahankan) ======
+let currentDifficulty='';let currentQuestions=[];let currentIndex=0;let score=0;let answered=false;
+function startQuiz(difficulty){
+currentDifficulty=difficulty;currentQuestions=[...quizData[difficulty]];currentIndex=0;score=0;answered=false;
+document.getElementById('difficulty-select').style.display='none';
+document.getElementById('quiz-area').style.display='block';
+document.getElementById('result-area').style.display='none';
+const badge=document.getElementById('quiz-badge');
+badge.textContent=difficulty.toUpperCase();badge.className='badge badge-'+difficulty;
+document.getElementById('q-total').textContent=currentQuestions.length;
+showQuestion();
+window.scrollTo({top:0,behavior:'smooth'});
+}
+function showQuestion(){
+answered=false;const q=currentQuestions[currentIndex];
+document.getElementById('q-current').textContent=currentIndex+1;
+document.getElementById('quiz-progress').style.width=((currentIndex+1)/currentQuestions.length*100)+'%';
+document.getElementById('question-text').innerHTML='<span class="qno">SOAL '+(currentIndex+1)+' ⁄ '+currentQuestions.length+'</span>'+q.q;
+const container=document.getElementById('options-container');container.innerHTML='';
+q.options.forEach((opt,i)=>{
+const div=document.createElement('div');div.className='quiz-option';
+const key=String.fromCharCode(65+i);
+div.innerHTML='<span class="k">'+key+'</span><span>'+opt+'</span>';
+div.onclick=()=>selectAnswer(i);container.appendChild(div);
+});
+document.getElementById('feedback-area').style.display='none';
+document.getElementById('next-btn').style.display='none';
+}
+function selectAnswer(index){
+if(answered)return;answered=true;
+const q=currentQuestions[currentIndex];
+const options=document.querySelectorAll('.quiz-option');
+options.forEach((opt,i)=>{
+opt.style.cursor='default';
+if(i===q.answer)opt.classList.add('correct');
+if(i===index&&i!==q.answer)opt.classList.add('incorrect');
+});
+const isCorrect=index===q.answer;if(isCorrect)score++;
+const fa=document.getElementById('feedback-area');
+const ft=document.getElementById('feedback-text');
+const fe=document.getElementById('feedback-explanation');
+fa.style.display='block';
+if(isCorrect){fa.style.background='rgba(94,234,160,.07)';fa.style.border='1px solid rgba(94,234,160,.25)';ft.style.color='#5eeaa0';ft.textContent='Benar — penalaranmu tepat.';}
+else{fa.style.background='rgba(255,143,143,.07)';fa.style.border='1px solid rgba(255,143,143,.25)';ft.style.color='#ff8f8f';ft.textContent='Kurang tepat — perhatikan pembahasannya.';}
+fe.textContent=q.explanation;
+const nb=document.getElementById('next-btn');nb.style.display='inline-flex';
+nb.innerHTML=(currentIndex===currentQuestions.length-1?'Lihat hasil':'Soal berikutnya')+'<span class="orb"><svg viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></span>';
+}
+function nextQuestion(){currentIndex++;if(currentIndex>=currentQuestions.length){showResult();}else{showQuestion();}}
+function showResult(){
+document.getElementById('quiz-area').style.display='none';
+document.getElementById('result-area').style.display='block';
+const total=currentQuestions.length;const percent=Math.round((score/total)*100);
+document.getElementById('score-display').textContent=score+'⁄'+total;
+document.getElementById('correct-count').textContent=score;
+document.getElementById('wrong-count').textContent=total-score;
+document.getElementById('score-percent').textContent=percent+'%';
+let msg='';
+if(percent===100)msg='Sempurna — kamu menguasai logaritma dengan sangat baik.';
+else if(percent>=80)msg='Bagus sekali — pemahamanmu sudah sangat solid.';
+else if(percent>=60)msg='Cukup baik — sedikit pengulangan dan skormu akan naik.';
+else if(percent>=40)msg='Pelajari kembali halaman rumus, lalu coba lagi.';
+else msg='Jangan menyerah — buka halaman rumus dan ulangi dari definisi.';
+document.getElementById('score-message').textContent=msg;
+window.scrollTo({top:0,behavior:'smooth'});
+}
+function resetQuiz(){
+document.getElementById('difficulty-select').style.display='grid';
+document.getElementById('quiz-area').style.display='none';
+document.getElementById('result-area').style.display='none';
+}
+</script>
+</body>
+</html>
